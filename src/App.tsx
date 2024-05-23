@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import "./App.css";
 import dayjs from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat";
 import { DemoContainer } from "@mui/x-date-pickers/internals/demo";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -12,44 +13,44 @@ import * as Yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { Typography, Snackbar, Alert } from "@mui/material";
 
+dayjs.extend(customParseFormat);
+
+const dateTimeSchema = Yup.date()
+  .nullable()
+  .default(null)
+  .transform((value, originalValue) => {
+    if (originalValue && typeof originalValue === "string") {
+      return dayjs(originalValue, "YYYY-MM-DD HH:mm").toDate();
+    }
+    return value;
+  });
+
 const SignupSchema = Yup.object().shape({
-  fromDate: Yup.date()
-    .nullable()
+  fromDate: dateTimeSchema
     .required("Không được để trống")
-    .max(new Date(), "Không được chọn ngày tương lai")
-    .test(
-      "is-before-toDate",
-      "Ngày bắt đầu phải nhỏ hơn hoặc bằng ngày kết thúc",
-      function (value) {
-        const { toDate } = this.parent;
-        return !value || !toDate || value <= toDate;
-      }
-    ),
-  toDate: Yup.date()
-    .nullable()
+    .max(dayjs(), "Không được chọn ngày tương lai")
+    .max(Yup.ref("toDate"), "Ngày bắt đầu phải nhỏ hơn ngày kết thúc"),
+  toDate: dateTimeSchema
     .required("Không được để trống")
     .min(
       Yup.ref("fromDate"),
       "Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu"
     )
-    .max(new Date(), "Không được chọn ngày tương lai"),
-  fromTime: Yup.date()
-    .nullable()
+    .max(dayjs(), "Không được chọn ngày tương lai"),
+  fromTime: dateTimeSchema
     .required("Không được để trống")
-    .max(new Date(), "Không được chọn giờ tương lai")
     .test(
       "is-before-toTime",
       "Giờ bắt đầu phải nhỏ hơn hoặc bằng giờ kết thúc",
       function (value) {
         const { toTime } = this.parent;
-        return !value || !toTime || value <= toTime;
+        return !value || !toTime || dayjs(value).isBefore(toTime);
       }
     ),
-  toTime: Yup.date()
-    .nullable()
+  toTime: dateTimeSchema
     .required("Không được để trống")
     .min(Yup.ref("fromTime"), "Giờ kết thúc phải lớn hơn hoặc bằng giờ bắt đầu")
-    .max(new Date(), "Không được chọn giờ tương lai"),
+    .max(dayjs(), "Không được chọn giờ tương lai"),
 });
 
 const App = () => {
@@ -60,7 +61,6 @@ const App = () => {
     reset,
     formState: { errors },
     trigger,
-    setError,
   } = useForm({
     resolver: yupResolver(SignupSchema),
     defaultValues: {
@@ -83,8 +83,8 @@ const App = () => {
     const toDateISO = data.toDate?.toISOString();
     const toTimeISO = data.toTime?.toISOString();
 
-    console.log("Selected From Date and Time (ISO):", fromDateISO, fromTimeISO);
-    console.log("Selected To Date and Time (ISO):", toDateISO, toTimeISO);
+    console.log(fromDateISO, fromTimeISO);
+    console.log(toDateISO, toTimeISO);
     setSnackbarOpen(true);
 
     reset({
