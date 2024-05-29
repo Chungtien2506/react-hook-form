@@ -4,9 +4,9 @@ import ResetPassWord from "./components/ResetPassWord";
 
 const App = () => {
   return (
-    <div>
+    <>
       <ResetPassWord />
-    </div>
+    </>
   );
 };
 
