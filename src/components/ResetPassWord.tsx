@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -12,7 +12,7 @@ import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
-import isStrongPassword from "../util/isStrongPassword";
+import { isStrongPassword } from "validator";
 
 const schema = yup.object().shape({
   currentPassword: yup.string().required("Vui lòng nhập mật khẩu hiện tại"),
@@ -31,13 +31,68 @@ const schema = yup.object().shape({
     .required("Vui lòng nhập lại mật khẩu mới"),
 });
 
-const ResetPassWord = () => {
+interface PasswordFieldProps {
+  label: string;
+  name: "currentPassword" | "newPassword" | "confirmPassword";
+  control: any;
+  showPassword: boolean;
+  togglePasswordVisibility: (
+    field: "currentPassword" | "newPassword" | "confirmPassword"
+  ) => void;
+  error: any;
+}
+
+const PasswordField: React.FC<PasswordFieldProps> = ({
+  label,
+  name,
+  control,
+  showPassword,
+  togglePasswordVisibility,
+  error,
+}) => (
+  <Stack spacing={0.5}>
+    <Typography variant="body2">{label}</Typography>
+    <Controller
+      name={name}
+      control={control}
+      render={({ field }) => (
+        <Box sx={{ position: "relative", width: "100%" }}>
+          <Input
+            type={showPassword ? "text" : "password"}
+            placeholder="Nhập thông tin"
+            {...field}
+            value={field.value ?? ""}
+            sx={{ width: "100%" }}
+          />
+          <IconButton
+            onClick={() => togglePasswordVisibility(name)}
+            sx={{
+              position: "absolute",
+              right: 0,
+              top: "50%",
+              transform: "translateY(-50%)",
+              padding: "0 12px",
+            }}
+          >
+            {showPassword ? <Visibility /> : <VisibilityOff />}
+          </IconButton>
+        </Box>
+      )}
+    />
+    {error && (
+      <Typography color="error" variant="body2">
+        {error.message}
+      </Typography>
+    )}
+  </Stack>
+);
+
+const ResetPassword: React.FC = () => {
   const {
     handleSubmit,
     control,
     watch,
-    setError,
-    clearErrors,
+    trigger,
     formState: { errors },
   } = useForm({
     resolver: yupResolver(schema),
@@ -73,36 +128,23 @@ const ResetPassWord = () => {
     setSnackbarOpen(false);
   };
 
-  const checkPasswordStrength = (password: any) => {
-    const score = isStrongPassword(password);
-    if (score >= 40) {
+  const checkPasswordStrength = (password: string) => {
+    if (isStrongPassword(password)) {
       return "Rất mạnh";
-    } else if (score >= 30) {
+    } else if (password.length >= 8) {
       return "Mạnh";
-    } else if (score >= 20) {
+    } else if (password.length >= 5) {
       return "Trung bình";
     } else {
       return "Yếu";
     }
   };
 
-  React.useEffect(() => {
-    if (newPasswordValue && confirmPasswordValue) {
-      if (newPasswordValue !== confirmPasswordValue) {
-        setError("confirmPassword", {
-          type: "manual",
-          message: "Mật khẩu nhập lại không khớp",
-        });
-        setError("newPassword", {
-          type: "manual",
-          message: "Mật khẩu nhập lại không khớp",
-        });
-      } else {
-        clearErrors("confirmPassword");
-        clearErrors("newPassword");
-      }
+  useEffect(() => {
+    if (newPasswordValue || confirmPasswordValue) {
+      trigger(["newPassword", "confirmPassword"]);
     }
-  }, [newPasswordValue, confirmPasswordValue, setError, clearErrors]);
+  }, [newPasswordValue, confirmPasswordValue, trigger]);
 
   return (
     <Box sx={{ display: "flex", justifyContent: "center" }}>
@@ -112,136 +154,38 @@ const ResetPassWord = () => {
         </Typography>
 
         <form onSubmit={handleSubmit(onSubmit)}>
-          <Stack spacing={0.5}>
-            <Typography variant="body2">Mật khẩu hiện tại</Typography>
-            <Controller
-              name="currentPassword"
-              control={control}
-              render={({ field }) => (
-                <Box sx={{ position: "relative", width: "100%" }}>
-                  <Input
-                    type={showPassword.currentPassword ? "text" : "password"}
-                    placeholder="Nhập thông tin"
-                    {...field}
-                    value={field.value ?? ""}
-                    sx={{ width: "100%" }}
-                  />
-                  <IconButton
-                    onClick={() => togglePasswordVisibility("currentPassword")}
-                    sx={{
-                      position: "absolute",
-                      right: 0,
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      padding: "0 12px",
-                    }}
-                  >
-                    {showPassword.currentPassword ? (
-                      <Visibility />
-                    ) : (
-                      <VisibilityOff />
-                    )}
-                  </IconButton>
-                </Box>
-              )}
-            />
-            {errors.currentPassword && (
-              <Typography color="error" variant="body2">
-                {errors.currentPassword.message}
-              </Typography>
-            )}
-          </Stack>
+          <PasswordField
+            label="Mật khẩu hiện tại"
+            name="currentPassword"
+            control={control}
+            showPassword={showPassword.currentPassword}
+            togglePasswordVisibility={togglePasswordVisibility}
+            error={errors.currentPassword}
+          />
 
-          <Stack spacing={0.5}>
-            <Typography variant="body2">Mật khẩu mới</Typography>
-            <Controller
-              name="newPassword"
-              control={control}
-              render={({ field }) => (
-                <Box sx={{ position: "relative", width: "100%" }}>
-                  <Input
-                    type={showPassword.newPassword ? "text" : "password"}
-                    placeholder="Nhập thông tin"
-                    {...field}
-                    value={field.value ?? ""}
-                    sx={{ width: "100%" }}
-                  />
-                  <IconButton
-                    onClick={() => togglePasswordVisibility("newPassword")}
-                    sx={{
-                      position: "absolute",
-                      right: 0,
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      padding: "0 12px",
-                    }}
-                  >
-                    {showPassword.newPassword ? (
-                      <Visibility />
-                    ) : (
-                      <VisibilityOff />
-                    )}
-                  </IconButton>
-                </Box>
-              )}
-            />
-            {errors.newPassword && (
-              <Typography color="error" variant="body2">
-                {errors.newPassword.message}
-              </Typography>
-            )}
-            <Typography
-              variant="body2"
-              sx={{ alignSelf: "flex-end", color: "hsl(var(--hue) 80% 30%)" }}
-            >
-              {checkPasswordStrength(newPasswordValue)}
-            </Typography>
-          </Stack>
+          <PasswordField
+            label="Mật khẩu mới"
+            name="newPassword"
+            control={control}
+            showPassword={showPassword.newPassword}
+            togglePasswordVisibility={togglePasswordVisibility}
+            error={errors.newPassword}
+          />
+          <Typography
+            variant="body2"
+            sx={{ alignSelf: "flex-end", color: "hsl(var(--hue) 80% 30%)" }}
+          >
+            {checkPasswordStrength(newPasswordValue)}
+          </Typography>
 
-          <Stack spacing={0.5}>
-            <Typography variant="body2">Nhập lại mật khẩu mới</Typography>
-            <Controller
-              name="confirmPassword"
-              control={control}
-              render={({ field }) => (
-                <Box sx={{ position: "relative", width: "100%" }}>
-                  <Input
-                    type={showPassword.confirmPassword ? "text" : "password"}
-                    placeholder="Nhập thông tin"
-                    {...field}
-                    value={field.value ?? ""}
-                    sx={{ width: "100%" }}
-                  />
-                  <IconButton
-                    onClick={() => togglePasswordVisibility("confirmPassword")}
-                    sx={{
-                      position: "absolute",
-                      right: 0,
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      padding: "0 12px",
-                    }}
-                  >
-                    {showPassword.confirmPassword ? (
-                      <Visibility />
-                    ) : (
-                      <VisibilityOff />
-                    )}
-                  </IconButton>
-                </Box>
-              )}
-            />
-            {errors.confirmPassword && (
-              <Typography color="error" variant="body2">
-                {errors.confirmPassword.message}
-              </Typography>
-            )}
-            {errors.newPassword && errors.newPassword.type === "manual" && (
-              <Typography color="error" variant="body2">
-                {errors.newPassword.message}
-              </Typography>
-            )}
-          </Stack>
+          <PasswordField
+            label="Nhập lại mật khẩu mới"
+            name="confirmPassword"
+            control={control}
+            showPassword={showPassword.confirmPassword}
+            togglePasswordVisibility={togglePasswordVisibility}
+            error={errors.confirmPassword}
+          />
 
           <Button color="danger" type="submit" sx={{ mt: 2, width: "100%" }}>
             Xác nhận
@@ -262,4 +206,4 @@ const ResetPassWord = () => {
   );
 };
 
-export default ResetPassWord;
+export default ResetPassword;
